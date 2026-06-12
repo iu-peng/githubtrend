@@ -72,20 +72,9 @@ function buildMessage(items) {
     const repoName = extractRepoName(item);
     const title = item.title || repoName;
     const link = item.link || "";
-    // 去除摘要中可能存在的 HTML 标签，并截断到 500 字以内
-    let summary = (item.contentSnippet || item.content || "")
-      .replace(/<[^>]*>/g, "")
-      .trim();
-    if (summary.length > 500) {
-      summary = summary.slice(0, 500) + "…";
-    }
 
-    lines.push(`## ${index + 1}. ${repoName}`);
-    lines.push(title);
-    if (summary) {
-      lines.push(summary);
-    }
-    lines.push(`链接：${link}`);
+    // Markdown 链接格式：[显示文字](URL)
+    lines.push(`${index + 1}. [${repoName}](${link}) - ${title}`);
     lines.push("");
   });
 
