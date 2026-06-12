@@ -1,0 +1,16 @@
+{
+  "name": "github-trending-wechat",
+  "version": "1.0.0",
+  "description": "每天自动抓取 GitHub Trending 仓库并通过 WxPusher 推送到微信",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

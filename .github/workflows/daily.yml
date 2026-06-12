@@ -1,0 +1,32 @@
+name: GitHub Trending 每日推送
+
+on:
+  # 定时触发：UTC 0:00（北京时间约 8:00）
+  schedule:
+    - cron: "0 0 * * *"
+  # 手动触发
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装依赖
+        run: npm install
+
+      - name: 运行推送
+        env:
+          WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+          WXPUSHER_UID: ${{ secrets.WXPUSHER_UID }}
+          TRENDING_LIMIT: ${{ vars.TRENDING_LIMIT || '10' }}
+          TRENDING_RSS_URL: ${{ vars.TRENDING_RSS_URL || 'https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml' }}
+        run: npm start
