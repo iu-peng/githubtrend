@@ -10,8 +10,8 @@ const RSS_URL =
 /** 推送仓库数量，可通过环境变量 TRENDING_LIMIT 覆盖，默认 10 */
 const LIMIT = parseInt(process.env.TRENDING_LIMIT || "10", 10);
 
-/** PushPlus 消息发送 API */
-const PUSHPLUS_API = "https://www.pushplus.plus/send";
+/** Server酱 消息发送 API */
+const SCT_API = `https://sctapi.ftqq.com/${process.env.SCT_SENDKEY}.send`;
 
 // ==================== 工具函数 ====================
 
@@ -20,8 +20,8 @@ const PUSHPLUS_API = "https://www.pushplus.plus/send";
  * 缺少时直接抛出错误，避免静默失败
  */
 function assertEnv() {
-  if (!process.env.PUSHPLUS_TOKEN) {
-    throw new Error("缺少必需的环境变量：PUSHPLUS_TOKEN。请在环境变量或 .env 文件中配置。");
+  if (!process.env.SCT_SENDKEY) {
+    throw new Error("缺少必需的环境变量：SCT_SENDKEY。请在环境变量或 .env 文件中配置。");
   }
 }
 
@@ -95,19 +95,17 @@ function buildMessage(items) {
 }
 
 /**
- * 通过 PushPlus 推送消息到微信
+ * 通过 Server酱 推送消息到微信
  * @param {string} content Markdown 内容
  */
-async function pushToPushPlus(content) {
+async function pushToSCT(content) {
   const body = {
-    token: process.env.PUSHPLUS_TOKEN,
     title: "GitHub Trending 今日推荐",
-    content,
-    template: "markdown",
+    desp: content,
   };
 
-  console.log("📤 正在推送到 PushPlus...");
-  const response = await fetch(PUSHPLUS_API, {
+  console.log("📤 正在推送到 Server酱...");
+  const response = await fetch(SCT_API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -115,9 +113,9 @@ async function pushToPushPlus(content) {
 
   const result = await response.json();
 
-  if (result.code !== 200) {
+  if (result.code !== 0) {
     throw new Error(
-      `PushPlus 推送失败：code=${result.code}，msg=${result.msg || "未知错误"}，完整响应：${JSON.stringify(result)}`
+      `Server酱 推送失败：code=${result.code}，msg=${result.message || result.info || "未知错误"}，完整响应：${JSON.stringify(result)}`
     );
   }
 
@@ -142,8 +140,8 @@ async function main() {
     console.log(message);
     console.log("");
 
-    // 4. 推送到 PushPlus
-    await pushToPushPlus(message);
+    // 4. 推送到 Server酱
+    await pushToSCT(message);
 
     console.log("\n🎉 任务完成！");
   } catch (error) {

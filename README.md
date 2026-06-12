@@ -1,16 +1,16 @@
 # GitHub Trending 微信推送
 
-每天自动抓取 [GitHub Trending](https://github.com/trending) 仓库，通过 [PushPlus](https://www.pushplus.plus/) 推送到你的微信。
+每天自动抓取 [GitHub Trending](https://github.com/trending) 仓库，通过 [Server酱](https://sct.ftqq.com/) 推送到你的微信。
 
-**无需服务器**，使用 GitHub Actions 定时运行。
+**无需服务器、完全免费**，使用 GitHub Actions 定时运行。
 
 ## 快速开始
 
-### 1. 获取 PushPlus Token
+### 1. 获取 Server酱 SendKey
 
-- 打开 [pushplus.plus](https://www.pushplus.plus/)
+- 打开 [sct.ftqq.com](https://sct.ftqq.com/)
 - 微信扫码登录
-- 首页就能看到你的 **Token**（32 位字符串），复制它
+- 首页就能看到 **SendKey**，复制它
 
 ### 2. 推送到你的 GitHub
 
@@ -33,7 +33,7 @@ git push -u origin main
 
 | Secret 名称 | 说明 |
 |---|---|
-| `PUSHPLUS_TOKEN` | PushPlus 的 Token |
+| `SCT_SENDKEY` | Server酱 的 SendKey |
 
 ### 4. 手动触发测试
 
@@ -54,13 +54,13 @@ cd github-trending-wechat
 npm install
 
 # 运行
-PUSHPLUS_TOKEN="你的Token" npm start
+SCT_SENDKEY="你的SendKey" npm start
 ```
 
 也可以创建 `.env` 文件（已加入 `.gitignore`，不会被提交）：
 
 ```bash
-PUSHPLUS_TOKEN=你的Token
+SCT_SENDKEY=你的SendKey
 ```
 
 然后使用：
@@ -77,7 +77,7 @@ export $(cat .env | xargs) && npm start
 |---|---|---|
 | `TRENDING_RSS_URL` | GitHub Trending RSS 地址 | `https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml` |
 | `TRENDING_LIMIT` | 推送仓库数量 | `10` |
-| `PUSHPLUS_TOKEN` | PushPlus Token（必填） | — |
+| `SCT_SENDKEY` | Server酱 SendKey（必填） | — |
 
 ### 修改推送数量
 
@@ -121,6 +121,8 @@ GitHub Actions 的 cron 使用 **UTC 时间**：
 
 GitHub Actions 免费版每月有 2000 分钟的运行额度，每天运行一次完全足够。
 
+Server酱 免费版每天可发送 **5 条消息**，完全够用。
+
 ## 推送内容格式
 
 推送消息使用 **Markdown** 格式，每条消息包含：
@@ -153,7 +155,7 @@ github-trending-wechat/
 
 - **Node.js 20** + ESM 模块
 - **rss-parser** 解析 RSS
-- **Node 原生 fetch** 调用 PushPlus API
+- **Node 原生 fetch** 调用 Server酱 API
 - **GitHub Actions** 定时调度
 
 ## License
