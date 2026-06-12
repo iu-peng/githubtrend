@@ -1,33 +1,39 @@
 # GitHub Trending 微信推送
 
-每天自动抓取 [GitHub Trending](https://github.com/trending) 仓库，通过 [WxPusher](https://wxpusher.zjiecode.com/) 推送到你的微信。
+每天自动抓取 [GitHub Trending](https://github.com/trending) 仓库，通过 [PushPlus](https://www.pushplus.plus/) 推送到你的微信。
 
 **无需服务器**，使用 GitHub Actions 定时运行。
 
 ## 快速开始
 
-### 1. 获取 WxPusher 配置
+### 1. 获取 PushPlus Token
 
-- 打开 [WxPusher 管理台](https://wxpusher.zjiecode.com/admin/)
+- 打开 [pushplus.plus](https://www.pushplus.plus/)
 - 微信扫码登录
-- **获取 appToken**：左侧菜单「应用管理」→「新建应用」或使用默认应用，复制 **AppToken**
-- **获取 UID**：左侧菜单「用户管理」→ 找到你自己的用户，复制 **UID**
+- 首页就能看到你的 **Token**（32 位字符串），复制它
 
-### 2. Fork 本项目
+### 2. 推送到你的 GitHub
 
-点击右上角 Fork 到你的 GitHub 账号下。
+在 GitHub 上创建一个新仓库，将本项目代码推送上去：
+
+```bash
+git init
+git add .
+git commit -m "init"
+git remote add origin https://github.com/你的用户名/仓库名.git
+git push -u origin main
+```
 
 ### 3. 配置 GitHub Secrets
 
-在 Fork 后的仓库中：
+在仓库中：
 
 1. 进入 **Settings** → **Secrets and variables** → **Actions**
-2. 点击 **New repository secret**，添加以下两个 Secrets：
+2. 点击 **New repository secret**，添加：
 
 | Secret 名称 | 说明 |
 |---|---|
-| `WXPUSHER_APP_TOKEN` | WxPusher 应用的 AppToken |
-| `WXPUSHER_UID` | 你的 WxPusher 用户 UID |
+| `PUSHPLUS_TOKEN` | PushPlus 的 Token |
 
 ### 4. 手动触发测试
 
@@ -47,19 +53,14 @@ cd github-trending-wechat
 # 安装依赖
 npm install
 
-# 设置环境变量
-export WXPUSHER_APP_TOKEN="你的AppToken"
-export WXPUSHER_UID="你的UID"
-
 # 运行
-npm start
+PUSHPLUS_TOKEN="你的Token" npm start
 ```
 
 也可以创建 `.env` 文件（已加入 `.gitignore`，不会被提交）：
 
 ```bash
-WXPUSHER_APP_TOKEN=你的AppToken
-WXPUSHER_UID=你的UID
+PUSHPLUS_TOKEN=你的Token
 ```
 
 然后使用：
@@ -76,8 +77,7 @@ export $(cat .env | xargs) && npm start
 |---|---|---|
 | `TRENDING_RSS_URL` | GitHub Trending RSS 地址 | `https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml` |
 | `TRENDING_LIMIT` | 推送仓库数量 | `10` |
-| `WXPUSHER_APP_TOKEN` | WxPusher AppToken（必填） | — |
-| `WXPUSHER_UID` | WxPusher 用户 UID（必填） | — |
+| `PUSHPLUS_TOKEN` | PushPlus Token（必填） | — |
 
 ### 修改推送数量
 
@@ -118,7 +118,6 @@ GitHub Actions 的 cron 使用 **UTC 时间**：
 
 - `0 0 * * *` → UTC 每天 0:00
 - 对应 **北京时间约早上 8:00**
-- 对应 **东京时间约早上 9:00**
 
 GitHub Actions 免费版每月有 2000 分钟的运行额度，每天运行一次完全足够。
 
@@ -154,7 +153,7 @@ github-trending-wechat/
 
 - **Node.js 20** + ESM 模块
 - **rss-parser** 解析 RSS
-- **Node 原生 fetch** 调用 WxPusher API
+- **Node 原生 fetch** 调用 PushPlus API
 - **GitHub Actions** 定时调度
 
 ## License

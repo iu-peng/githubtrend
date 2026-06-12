@@ -25,8 +25,7 @@ jobs:
 
       - name: 运行推送
         env:
-          WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
-          WXPUSHER_UID: ${{ secrets.WXPUSHER_UID }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           TRENDING_LIMIT: ${{ vars.TRENDING_LIMIT || '10' }}
           TRENDING_RSS_URL: ${{ vars.TRENDING_RSS_URL || 'https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml' }}
         run: npm start

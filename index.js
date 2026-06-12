@@ -10,8 +10,8 @@ const RSS_URL =
 /** 推送仓库数量，可通过环境变量 TRENDING_LIMIT 覆盖，默认 10 */
 const LIMIT = parseInt(process.env.TRENDING_LIMIT || "10", 10);
 
-/** WxPusher 消息发送 API */
-const WXPUSHER_API = "https://wxpusher.zjiecode.com/api/send/message";
+/** PushPlus 消息发送 API */
+const PUSHPLUS_API = "https://www.pushplus.plus/send";
 
 // ==================== 工具函数 ====================
 
@@ -20,17 +20,8 @@ const WXPUSHER_API = "https://wxpusher.zjiecode.com/api/send/message";
  * 缺少时直接抛出错误，避免静默失败
  */
 function assertEnv() {
-  const missing = [];
-
-  if (!process.env.WXPUSHER_APP_TOKEN) {
-    missing.push("WXPUSHER_APP_TOKEN");
-  }
-  if (!process.env.WXPUSHER_UID) {
-    missing.push("WXPUSHER_UID");
-  }
-
-  if (missing.length > 0) {
-    throw new Error(`缺少必需的环境变量：${missing.join("、")}。请在环境变量或 .env 文件中配置。`);
+  if (!process.env.PUSHPLUS_TOKEN) {
+    throw new Error("缺少必需的环境变量：PUSHPLUS_TOKEN。请在环境变量或 .env 文件中配置。");
   }
 }
 
@@ -104,20 +95,19 @@ function buildMessage(items) {
 }
 
 /**
- * 通过 WxPusher 推送消息到微信
+ * 通过 PushPlus 推送消息到微信
  * @param {string} content Markdown 内容
  */
-async function pushToWxPusher(content) {
+async function pushToPushPlus(content) {
   const body = {
-    appToken: process.env.WXPUSHER_APP_TOKEN,
+    token: process.env.PUSHPLUS_TOKEN,
+    title: "GitHub Trending 今日推荐",
     content,
-    summary: "GitHub Trending 今日推荐",
-    contentType: 3, // 3 表示 Markdown
-    uids: [process.env.WXPUSHER_UID],
+    template: "markdown",
   };
 
-  console.log("📤 正在推送到 WxPusher...");
-  const response = await fetch(WXPUSHER_API, {
+  console.log("📤 正在推送到 PushPlus...");
+  const response = await fetch(PUSHPLUS_API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -125,9 +115,9 @@ async function pushToWxPusher(content) {
 
   const result = await response.json();
 
-  if (result.code !== 1000) {
+  if (result.code !== 200) {
     throw new Error(
-      `WxPusher 推送失败：code=${result.code}，msg=${result.msg || "未知错误"}，完整响应：${JSON.stringify(result)}`
+      `PushPlus 推送失败：code=${result.code}，msg=${result.msg || "未知错误"}，完整响应：${JSON.stringify(result)}`
     );
   }
 
@@ -152,8 +142,8 @@ async function main() {
     console.log(message);
     console.log("");
 
-    // 4. 推送到 WxPusher
-    await pushToWxPusher(message);
+    // 4. 推送到 PushPlus
+    await pushToPushPlus(message);
 
     console.log("\n🎉 任务完成！");
   } catch (error) {
