@@ -10,9 +10,6 @@ const SCT_API = `https://sctapi.ftqq.com/${process.env.SCT_SENDKEY}.send`;
 
 /**
  * 各平台 RSS 源配置
- * name: 平台名称
- * url:  RSS 地址
- * extractTitle: 从 RSS item 提取标题，可选
  */
 const PLATFORMS = [
   {
@@ -33,16 +30,16 @@ const PLATFORMS = [
     url: "https://www.reddit.com/r/programming/hot.rss?limit=20",
   },
   {
-    name: "掘金热榜",
-    url: "https://rsshub.app/juejin/trending/weekly",
+    name: "掘金前端",
+    url: "https://rsshub.rssforever.com/juejin/category/frontend",
   },
   {
     name: "知乎热榜",
-    url: "https://rsshub.app/zhihu/hotlist",
+    url: "https://rsshub.rssforever.com/zhihu/hotlist",
   },
   {
     name: "Product Hunt",
-    url: "https://rsshub.app/producthunt/today",
+    url: "https://rsshub.rssforever.com/producthunt/today",
   },
 ];
 
@@ -58,18 +55,37 @@ function assertEnv() {
 }
 
 /**
+ * 用原生 fetch 获取 RSS XML，再用 rss-parser 解析
+ * 比 parser.parseURL 更可控超时
+ */
+async function fetchRSS(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * 抓取单个平台的 RSS
- * @param {object} platform 平台配置
- * @returns {Promise<{name: string, items: Array}>}
  */
 async function fetchPlatform(platform) {
-  const parser = new Parser({
-    timeout: 30000, // 30 秒超时
-  });
   console.log(`📡 正在抓取 ${platform.name}...`);
 
   try {
-    const feed = await parser.parseURL(platform.url);
+    const xml = await fetchRSS(platform.url);
+    const parser = new Parser();
+    const feed = await parser.parseString(xml);
+
     if (!feed || !feed.items || feed.items.length === 0) {
       console.log(`⚠️  ${platform.name}：无数据，跳过`);
       return { name: platform.name, items: [] };
@@ -84,9 +100,6 @@ async function fetchPlatform(platform) {
 
 /**
  * 清理标题中的 HTML 标签并截断
- * @param {string} text
- * @param {number} maxLen
- * @returns {string}
  */
 function cleanTitle(text, maxLen = 100) {
   let s = (text || "").replace(/<[^>]*>/g, "").trim();
@@ -107,8 +120,6 @@ function extractRepoName(item) {
 
 /**
  * 组装所有平台的 Markdown 消息
- * @param {Array} results 各平台抓取结果
- * @returns {string}
  */
 function buildMessage(results) {
   const lines = ["# 今日技术热榜汇总", ""];
@@ -123,12 +134,10 @@ function buildMessage(results) {
       let displayTitle;
 
       if (name === "GitHub Trending") {
-        // GitHub：显示 owner/repo 作为链接文字
         const repo = extractRepoName(item);
         displayTitle = cleanTitle(item.title || repo);
         lines.push(`${i + 1}. [${repo}](${link}) - ${displayTitle}`);
       } else {
-        // 其他平台：标题作为链接文字
         displayTitle = cleanTitle(item.title);
         lines.push(`${i + 1}. [${displayTitle}](${link})`);
       }
@@ -148,7 +157,6 @@ function buildMessage(results) {
 
 /**
  * 通过 Server酱 推送
- * @param {string} content Markdown 内容
  */
 async function pushToSCT(content) {
   const body = {
@@ -180,26 +188,22 @@ async function main() {
   try {
     console.log("🚀 技术热榜汇总推送开始\n");
 
-    // 1. 校验环境变量
     assertEnv();
 
-    // 2. 并行抓取所有平台
+    // 并行抓取所有平台
     const results = await Promise.all(PLATFORMS.map(fetchPlatform));
 
-    // 统计
     const totalItems = results.reduce((sum, r) => sum + r.items.length, 0);
     if (totalItems === 0) {
       throw new Error("所有平台均抓取失败，请检查网络或 RSS 源是否可用。");
     }
     console.log(`\n📊 共抓取 ${totalItems} 条内容\n`);
 
-    // 3. 组装消息
     const message = buildMessage(results);
     console.log("📝 推送内容预览：\n");
     console.log(message);
     console.log("");
 
-    // 4. 推送到 Server酱
     await pushToSCT(message);
 
     console.log("\n🎉 任务完成！");
