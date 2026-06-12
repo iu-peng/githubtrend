@@ -2,94 +2,157 @@ import Parser from "rss-parser";
 
 // ==================== 配置 ====================
 
-/** GitHub Trending RSS 地址，可通过环境变量 TRENDING_RSS_URL 覆盖 */
-const RSS_URL =
-  process.env.TRENDING_RSS_URL ||
-  "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml";
-
-/** 推送仓库数量，可通过环境变量 TRENDING_LIMIT 覆盖，默认 10 */
+/** 每个平台抓取数量 */
 const LIMIT = parseInt(process.env.TRENDING_LIMIT || "10", 10);
 
-/** Server酱 消息发送 API */
+/** Server酱 API 地址 */
 const SCT_API = `https://sctapi.ftqq.com/${process.env.SCT_SENDKEY}.send`;
+
+/**
+ * 各平台 RSS 源配置
+ * name: 平台名称
+ * url:  RSS 地址
+ * extractTitle: 从 RSS item 提取标题，可选
+ */
+const PLATFORMS = [
+  {
+    name: "GitHub Trending",
+    url: process.env.GITHUB_RSS_URL ||
+      "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml",
+  },
+  {
+    name: "V2EX 热帖",
+    url: "https://www.v2ex.com/feed/tab/hot.xml",
+  },
+  {
+    name: "Hacker News",
+    url: "https://hnrss.org/frontpage?count=20",
+  },
+  {
+    name: "Reddit Programming",
+    url: "https://www.reddit.com/r/programming/hot.rss?limit=20",
+  },
+  {
+    name: "掘金热榜",
+    url: "https://rsshub.app/juejin/trending/weekly",
+  },
+  {
+    name: "知乎热榜",
+    url: "https://rsshub.app/zhihu/hotlist",
+  },
+  {
+    name: "Product Hunt",
+    url: "https://rsshub.app/producthunt/today",
+  },
+];
 
 // ==================== 工具函数 ====================
 
 /**
- * 校验必需的环境变量是否存在
- * 缺少时直接抛出错误，避免静默失败
+ * 校验必需的环境变量
  */
 function assertEnv() {
   if (!process.env.SCT_SENDKEY) {
-    throw new Error("缺少必需的环境变量：SCT_SENDKEY。请在环境变量或 .env 文件中配置。");
+    throw new Error("缺少必需的环境变量：SCT_SENDKEY。");
   }
 }
 
 /**
- * 抓取 GitHub Trending RSS
- * @returns {Promise<Array>} 解析后的 RSS 条目列表
+ * 抓取单个平台的 RSS
+ * @param {object} platform 平台配置
+ * @returns {Promise<{name: string, items: Array}>}
  */
-async function fetchTrending() {
-  const parser = new Parser();
+async function fetchPlatform(platform) {
+  const parser = new Parser({
+    timeout: 30000, // 30 秒超时
+  });
+  console.log(`📡 正在抓取 ${platform.name}...`);
 
-  console.log(`📡 正在抓取 RSS：${RSS_URL}`);
-  const feed = await parser.parseURL(RSS_URL);
-
-  if (!feed || !feed.items || feed.items.length === 0) {
-    throw new Error("RSS 抓取失败：未获取到任何仓库数据，请检查 RSS 地址是否可用。");
+  try {
+    const feed = await parser.parseURL(platform.url);
+    if (!feed || !feed.items || feed.items.length === 0) {
+      console.log(`⚠️  ${platform.name}：无数据，跳过`);
+      return { name: platform.name, items: [] };
+    }
+    console.log(`✅ ${platform.name}：获取 ${feed.items.length} 条`);
+    return { name: platform.name, items: feed.items.slice(0, LIMIT) };
+  } catch (err) {
+    console.log(`❌ ${platform.name}：抓取失败（${err.message}），跳过`);
+    return { name: platform.name, items: [] };
   }
-
-  console.log(`✅ 成功抓取 ${feed.items.length} 个仓库，将推送前 ${LIMIT} 个`);
-  return feed.items;
 }
 
 /**
- * 从 RSS 条目中提取仓库名（owner/repo 格式）
- * @param {object} item RSS 条目
- * @returns {string} owner/repo
+ * 清理标题中的 HTML 标签并截断
+ * @param {string} text
+ * @param {number} maxLen
+ * @returns {string}
+ */
+function cleanTitle(text, maxLen = 100) {
+  let s = (text || "").replace(/<[^>]*>/g, "").trim();
+  if (s.length > maxLen) s = s.slice(0, maxLen) + "…";
+  return s;
+}
+
+/**
+ * 从 GitHub RSS item 提取仓库名
  */
 function extractRepoName(item) {
-  // RSS 的 link 通常是 https://github.com/owner/repo
   if (item.link) {
     const match = item.link.match(/github\.com\/([^/]+\/[^/]+)/);
     if (match) return match[1];
   }
-  // 兜底：用 guid 或 title
   return item.guid || item.title || "unknown";
 }
 
 /**
- * 将 RSS 条目列表组装成 Markdown 推送内容
- * @param {Array} items RSS 条目列表
- * @returns {string} Markdown 格式的推送内容
+ * 组装所有平台的 Markdown 消息
+ * @param {Array} results 各平台抓取结果
+ * @returns {string}
  */
-function buildMessage(items) {
-  const topItems = items.slice(0, LIMIT);
+function buildMessage(results) {
+  const lines = ["# 今日技术热榜汇总", ""];
 
-  const lines = ["# GitHub Trending 今日推荐", ""];
+  for (const { name, items } of results) {
+    if (items.length === 0) continue;
 
-  topItems.forEach((item, index) => {
-    const repoName = extractRepoName(item);
-    const title = item.title || repoName;
-    const link = item.link || "";
+    lines.push(`## ${name}`, "");
 
-    // Markdown 链接格式：[显示文字](URL)
-    lines.push(`${index + 1}. [${repoName}](${link}) - ${title}`);
+    items.forEach((item, i) => {
+      const link = item.link || "";
+      let displayTitle;
+
+      if (name === "GitHub Trending") {
+        // GitHub：显示 owner/repo 作为链接文字
+        const repo = extractRepoName(item);
+        displayTitle = cleanTitle(item.title || repo);
+        lines.push(`${i + 1}. [${repo}](${link}) - ${displayTitle}`);
+      } else {
+        // 其他平台：标题作为链接文字
+        displayTitle = cleanTitle(item.title);
+        lines.push(`${i + 1}. [${displayTitle}](${link})`);
+      }
+    });
+
     lines.push("");
-  });
+  }
 
-  lines.push(`> 更新时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}（北京时间）`);
+  lines.push(
+    `> 更新时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}（北京时间）`,
+    "",
+    "> Powered by GitHub Actions + Server酱",
+  );
 
   return lines.join("\n");
 }
 
 /**
- * 通过 Server酱 推送消息到微信
+ * 通过 Server酱 推送
  * @param {string} content Markdown 内容
  */
 async function pushToSCT(content) {
   const body = {
-    title: "GitHub Trending 今日推荐",
+    title: "今日技术热榜",
     desp: content,
   };
 
@@ -115,17 +178,24 @@ async function pushToSCT(content) {
 
 async function main() {
   try {
-    console.log("🚀 GitHub Trending 微信推送开始\n");
+    console.log("🚀 技术热榜汇总推送开始\n");
 
     // 1. 校验环境变量
     assertEnv();
 
-    // 2. 抓取 RSS
-    const items = await fetchTrending();
+    // 2. 并行抓取所有平台
+    const results = await Promise.all(PLATFORMS.map(fetchPlatform));
+
+    // 统计
+    const totalItems = results.reduce((sum, r) => sum + r.items.length, 0);
+    if (totalItems === 0) {
+      throw new Error("所有平台均抓取失败，请检查网络或 RSS 源是否可用。");
+    }
+    console.log(`\n📊 共抓取 ${totalItems} 条内容\n`);
 
     // 3. 组装消息
-    const message = buildMessage(items);
-    console.log("\n📝 推送内容预览：\n");
+    const message = buildMessage(results);
+    console.log("📝 推送内容预览：\n");
     console.log(message);
     console.log("");
 

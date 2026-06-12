@@ -1,10 +1,8 @@
-name: GitHub Trending 每日推送
+name: 技术热榜每日推送
 
 on:
-  # 定时触发：UTC 0:00（北京时间约 8:00）
   schedule:
     - cron: "0 0 * * *"
-  # 手动触发
   workflow_dispatch:
 
 jobs:
@@ -27,5 +25,5 @@ jobs:
         env:
           SCT_SENDKEY: ${{ secrets.SCT_SENDKEY }}
           TRENDING_LIMIT: ${{ vars.TRENDING_LIMIT || '10' }}
-          TRENDING_RSS_URL: ${{ vars.TRENDING_RSS_URL || 'https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml' }}
+          GITHUB_RSS_URL: ${{ vars.GITHUB_RSS_URL || 'https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml' }}
         run: npm start
